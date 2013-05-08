@@ -1,0 +1,220 @@
+<?php
+
+
+class Indexer extends WireData implements Module, ConfigurableModule {
+
+    
+    protected static $defaults = array(
+            'pdfpath' => "/usr/bin/pdftotext",
+            'wordpath' => "/usr/bin/wvText",
+            'ignoredchars' => ".\n,\n;\n'\n$\n%\n?\n-\n_\n–\n\"",
+            'minlength' => 2
+            
+    );
+    
+    
+    const fieldName = 'indexer';
+    
+    public static function getModuleInfo() {
+
+        return array(
+
+            'title' => 'Site Indexer (beta)', 
+            'version' => 10, 
+            'summary' => 'This module provide an efficent search index, also with pdf/doc files (require popper-utils and wv)',
+            'href' => 'http://alessiodalbianco.me',
+            'singular' => true, 
+            'autoload' => true, 
+            );
+    }
+
+    
+    
+    public function install(){
+        
+        // Create the index field on all pages.
+        // Check if just exists.
+        $indexerField = $this->fields->get('name='.Indexer::fieldName );
+        
+        if( !$indexerField ):
+            $field = new Field(); 
+            $field->type = $this->modules->get("FieldtypeTextarea"); 
+            $field->name = Indexer::fieldName; 
+            $field->label = 'Index';
+            
+            $field->labelFieldName = 'title';
+            $field->inputfield = 'InputfieldTextarea';
+            $field->collapsed = 4;
+            $field->flags = Field::flagAutojoin | Field::flagGlobal; 
+            $field->save();
+            $this->message("Created index field: " . Indexer::fieldName);
+        
+        else:
+           $this->error("The field:". Indexer::fieldName . " just exists" );
+        endif;
+        
+    }
+    
+   static public function getModuleConfigInputfields(array $data) {
+        $data = array_merge(self::$defaults, $data);
+
+        $fields = new InputfieldWrapper();
+        $modules = wire('modules');
+        
+        $field = $modules->get('InputfieldText');
+        $field->label = _("Path to pdftotext executable");
+        $field->attr('name', 'pdfpath');
+        $field->attr('size', 30);
+        $field->attr('value', $data['pdfpath']);
+        
+        $fields->append($field);
+        
+        $field = $modules->get('InputfieldText');
+        $field->label = _("Path to wvText executable");
+        $field->attr('name', 'wordpath');
+        $field->attr('size', 30);
+        $field->attr('value', $data['wordpath']);
+        
+        $fields->append($field);
+        
+        $field = $modules->get('InputfieldTextarea');
+        $field->label = _("Ignored characters in index");
+        $field->notes = _("Inser the characters separated by newline");
+        $field->attr('name', 'ignoredchars');
+        $field->attr('rows', 20);
+        $field->attr('value', $data['ignoredchars']);
+        
+        $fields->append($field);
+        
+        
+        $field = $modules->get('InputfieldInteger');
+        $field->label = _("Minum character to insert in index");
+        $field->attr('name', 'minlength');
+        $field->attr('size', 10);
+        $field->attr('value', $data['minlength']);
+        
+        $fields->append($field);
+        
+        return $fields;
+    }
+   
+   public function __construct(){
+       $this->pdfpath = $this->getConfig('pdfpath');
+       $this->wordpath = $this->getConfig('wordpath');
+       $this->maxlength = $this->getConfig('maxlength');
+       $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
+   }
+   
+    /**
+     * Initialize the module
+     *
+     * ProcessWire calls this when the module is loaded. For 'autoload' modules, this will be called
+     * when ProcessWire's API is ready. As a result, this is a good place to attach hooks. 
+     *
+     */
+    public function init() {
+        
+        // add a hook after the $pages->save, to issue a notice every time a page is saved
+        $this->pages->addHookBefore('save', $this, '___indexObject'); 
+
+    }
+
+    public function ___indexObject($event) {
+
+        $page = &$event->arguments[0]; 
+        
+        // don't add this to the admin pages
+        if($page->template == 'admin') return;
+        
+        $fulltext = "";
+        
+        // Now we cicle trough all text field and we append all the 
+        // text in $fulltext
+        $fields = $page->fields;
+        
+        foreach ($fields as $field):
+            
+            if( preg_match('/text|title|url/i', $field->type) && $page->editable($field->name) ):
+               $fulltext .= ' '.strip_tags($page->get($field->name));
+            endif;
+            
+            if( preg_match('/file/i', $field->type) && $page->editable($field->name) ):
+               
+               $files = $page->get($field->name);
+               
+               foreach( $files as $file ):
+                   $filefullpath = $file->filename;
+                   
+                   // PDF handling
+                   if( preg_match('/pdf/i', $file->ext) ):
+                        
+                       exec($this->pdfpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
+                       $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
+                       unlink('/tmp/'. $file->name);
+                       
+                   endif;
+                   
+                   // DOC handling
+                   if( preg_match('/doc/i', $file->ext) ):
+                        
+                       exec($this->wordpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
+                       $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
+                       unlink('/tmp/'. $file->name);
+                       
+                   endif;
+                   
+                   $fulltext .= ' '.$file->description;  
+               
+               endforeach;
+               
+               
+            endif;
+
+        endforeach;
+        
+        $keys = $this->getKeywords($fulltext);
+        $page->set(self::fieldName, $fulltext);
+        return $event;
+    }
+    
+     /**
+     * get the config either default or overwritten by user config
+     * @param  string $key name of the option
+     * @return mixed      return requested option value
+     */
+    public function getConfig($key) {
+        return ($this->get($key)) ? $this->get($key) : self::$defaults[$key];
+    }
+    
+    /**
+     * return an array of words (keywords)
+     * @param {string} text
+     */
+    public function getKeywords($text){
+        
+        $text = str_replace($text, $this->ignoredchars, '');
+        
+        $words = explode(' ',trim($text));
+        
+        // We cleanup the array from spaces and words with length < 2.
+        $temp = array();
+        foreach ($words as $word):
+        
+            if( strlen(trim($word)) > intval($this->maxlength) ):
+                array_push($temp, $word);
+            endif;
+        
+        endforeach;
+        
+        // remove the duplicated words.
+        $words = array_unique($temp);
+        
+        $words = implode(' ', $words);
+        
+        return $words;
+        
+        
+    }
+
+    
+}
