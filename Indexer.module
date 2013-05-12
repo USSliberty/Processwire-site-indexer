@@ -120,7 +120,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     }
 
     public function ___indexObject($event) {
-
+        include_once 'import/pdf2text.php';
         $page = &$event->arguments[0]; 
         
         // don't add this to the admin pages
@@ -147,7 +147,6 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                    
                    // PDF handling
                    if( preg_match('/pdf/i', $file->ext) ):
-                        
                        exec($this->pdfpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
                        $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
                        unlink('/tmp/'. $file->name);
@@ -173,7 +172,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         endforeach;
         
         $keys = $this->getKeywords($fulltext);
-        $page->set(self::fieldName, $fulltext);
+        $page->set(self::fieldName,$fulltext);
         return $event;
     }
     
@@ -189,10 +188,11 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     /**
      * return an array of words (keywords)
      * @param {string} text
+     * @return {string} keywords
      */
     public function getKeywords($text){
         
-        $text = str_replace($text, $this->ignoredchars, '');
+        $text = str_replace($this->ignoredchars, '', $text);
         
         $words = explode(' ',trim($text));
         
@@ -215,6 +215,6 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         
     }
-
+    
     
 }
