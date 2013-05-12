@@ -120,7 +120,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     }
 
     public function ___indexObject($event) {
-        include_once 'import/pdf2text.php';
+        
         $page = &$event->arguments[0]; 
         
         // don't add this to the admin pages
