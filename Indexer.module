@@ -101,7 +101,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
    public function __construct(){
        $this->pdfpath = $this->getConfig('pdfpath');
        $this->wordpath = $this->getConfig('wordpath');
-       $this->maxlength = $this->getConfig('maxlength');
+       $this->minlength = $this->getConfig('minlength');
        $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
    }
    
@@ -200,7 +200,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $temp = array();
         foreach ($words as $word):
         
-            if( strlen(trim($word)) > intval($this->maxlength) ):
+            if( strlen(trim($word)) > intval($this->minlength) ):
                 array_push($temp, $word);
             endif;
         
