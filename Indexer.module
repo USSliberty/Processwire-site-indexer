@@ -7,8 +7,9 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     protected static $defaults = array(
             'pdfpath' => "/usr/bin/pdftotext",
             'wordpath' => "/usr/bin/wvText",
-            'ignoredchars' => ".\n,\n;\n'\n$\n%\n?\n-\n_\n–\n\"",
-            'minlength' => 2
+            'ignoredchars' => ".\n,\n;\n'\n$\n%\n?\n-\n_\n–\n\"\n…",
+            'minlength' => 2,
+            'pdfphp' => 0
             
     );
     
@@ -20,7 +21,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         return array(
 
             'title' => 'Site Indexer (beta)', 
-            'version' => 10, 
+            'version' => 30, 
             'summary' => 'This module provide an efficent search index, also with pdf/doc files (require poppler-utils and wv)',
             'href' => 'http://alessiodalbianco.me',
             'singular' => true, 
@@ -34,12 +35,12 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         // Create the index field on all pages.
         // Check if just exists.
-        $indexerField = $this->fields->get('name='.Indexer::fieldName );
+        $indexerField = $this->fields->get('name='.self::fieldName );
         
         if( !$indexerField ):
             $field = new Field(); 
             $field->type = $this->modules->get("FieldtypeTextarea"); 
-            $field->name = Indexer::fieldName; 
+            $field->name = self::fieldName; 
             $field->label = 'Index';
             
             $field->labelFieldName = 'title';
@@ -47,13 +48,31 @@ class Indexer extends WireData implements Module, ConfigurableModule {
             $field->collapsed = 4;
             $field->flags = Field::flagAutojoin | Field::flagGlobal; 
             $field->save();
-            $this->message("Created index field: " . Indexer::fieldName);
+            $this->message("Created index field: " . self::fieldName);
         
         else:
-           $this->error("The field:". Indexer::fieldName . " just exists" );
+           $this->error("The field:". self::fieldName . " just exists" );
         endif;
         
     }
+    
+  public function uninstall(){
+      $indexerField = $this->fields->get('name='.self::fieldName );
+      $indexerField->flags = Field::flagSystemOverride;
+      $indexerField->flags = 0;
+      $templates = $this->templates;
+      foreach( $templates as $template ): 
+        if($template->hasField($indexerField)) {
+            $fieldgroup = $template->fieldgroup;     
+            $fieldgroup->remove($indexerField); 
+            $fieldgroup->save();
+            $this->message("Removed indexer field from ". $template->name . " fieldgroup"); 
+        }
+      endforeach;      
+      $this->fields->delete($indexerField);
+      $this->message("The field: " . self::fieldName . " is removed");
+      
+  }
     
    static public function getModuleConfigInputfields(array $data) {
         $data = array_merge(self::$defaults, $data);
@@ -66,6 +85,16 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $field->attr('name', 'pdfpath');
         $field->attr('size', 30);
         $field->attr('value', $data['pdfpath']);
+        
+        $fields->append($field);
+        
+        $field = $modules->get('InputfieldCheckbox');
+        $field->label = "Use the built-in php class ?"; 
+        $field->description = "if you check this the PHP class will be used insted of poppler";
+        $field->attr('name', 'pdfphp');
+        
+        if($data['pdfphp'])
+            $field->attr('checked', $data['pdfphp']);
         
         $fields->append($field);
         
@@ -95,6 +124,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         $fields->append($field);
         
+        
         return $fields;
     }
    
@@ -102,6 +132,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
        $this->pdfpath = $this->getConfig('pdfpath');
        $this->wordpath = $this->getConfig('wordpath');
        $this->minlength = $this->getConfig('minlength');
+       $this->pdfphp = $this->getConfig('pdfphp');
        $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
    }
    
@@ -120,11 +151,16 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     }
 
     public function ___indexObject($event) {
+            
+        require_once 'import/pdf2txt.php';
         
         $page = &$event->arguments[0]; 
         
         // don't add this to the admin pages
-        if($page->template == 'admin') return;
+        if($page->template == 'admin') return $event;
+        
+        // If the page doesn't alredy exists don't do anything.
+        if( $page->isNew() ) return $event;
         
         $fulltext = "";
         
@@ -134,7 +170,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         foreach ($fields as $field):
             
-            if( preg_match('/text|title|url/i', $field->type) && $page->editable($field->name) ):
+            if( preg_match('/text|title|url/i', $field->type) && $page->editable($field->name) && $field->name != self::fieldName ):
                $fulltext .= ' '.strip_tags($page->get($field->name));
             endif;
             
@@ -147,10 +183,14 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                    
                    // PDF handling
                    if( preg_match('/pdf/i', $file->ext) ):
-                       exec($this->pdfpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
-                       $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
-                       unlink('/tmp/'. $file->name);
-                       
+                       // Check if we use the PHP Class or the Unix utilities
+                       if( !$this->pdfphp ):
+                           exec($this->pdfpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
+                           $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
+                           unlink('/tmp/'. $file->name);
+                       else:
+                           $fulltext .= Pdf2Text::pdf2txt($filefullpath);
+                       endif;
                    endif;
                    
                    // DOC handling
@@ -172,7 +212,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         endforeach;
         
         $keys = $this->getKeywords($fulltext);
-        $page->set(self::fieldName,$fulltext);
+        $page->set(self::fieldName,$keys);
         return $event;
     }
     
@@ -193,6 +233,8 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     public function getKeywords($text){
         
         $text = str_replace($this->ignoredchars, '', $text);
+        $text = trim(preg_replace('/\s+/', ' ', $text));
+        $text = trim(preg_replace('/[0-9]*/', '', $text));
         
         $words = explode(' ',trim($text));
         
@@ -211,7 +253,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         $words = implode(' ', $words);
         
-        return $words;
+        return strtolower($words);
         
         
     }
