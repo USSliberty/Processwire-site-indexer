@@ -21,7 +21,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         return array(
 
             'title' => 'Site Indexer (beta)', 
-            'version' => 30, 
+            'version' => 50, 
             'summary' => 'This module provide an efficent search index, also with pdf/doc files (require poppler-utils and wv)',
             'href' => 'http://alessiodalbianco.me',
             'singular' => true, 
@@ -123,6 +123,18 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $field->attr('value', $data['minlength']);
         
         $fields->append($field);
+        
+        
+        $field = $modules->get('InputfieldCheckbox');
+        $field->label = "Reindex all objects"; 
+        $field->description = "if you check this all the pages will be re-index";
+        $field->attr('name', 'reindex');
+        
+        $fields->append($field);
+        $reindex = wire('input')->post->reindex ? true : false;
+        if( $reindex ):
+           self::reindexAll();
+        endif;
         
         
         return $fields;
@@ -258,5 +270,26 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
     }
     
+    /**
+     * Rebuild the index of ALL pages.
+     */
+    public static function reindexAll(){
+        
+        $indexerField = wire('fields')->get('name='.self::fieldName );
+        $templates = wire('templates');
+        $n_pages = 0;
+        foreach( $templates as $template ): 
+        if($template->hasField($indexerField)) {
+               $pages = wire('pages')->find('template='.$template);
+               $n_pages = $n_pages + count($pages);
+               foreach( $pages as $page ):
+                   // Trigger the hook __indexObject
+                   $page->save();
+               endforeach; 
+        }
+        endforeach;
+        
+        
+    }
     
 }
