@@ -81,7 +81,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $modules = wire('modules');
         
         $field = $modules->get('InputfieldText');
-        $field->label = _("Path to pdftotext executable");
+        $field->label = __("Path to pdftotext executable");
         $field->attr('name', 'pdfpath');
         $field->attr('size', 30);
         $field->attr('value', $data['pdfpath']);
@@ -89,8 +89,8 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $fields->append($field);
         
         $field = $modules->get('InputfieldCheckbox');
-        $field->label = "Use the built-in php class ?"; 
-        $field->description = "if you check this the PHP class will be used insted of poppler";
+        $field->label = __("Use the built-in php class ?"); 
+        $field->description = __("if you check this the PHP class will be used insted of poppler");
         $field->attr('name', 'pdfphp');
         
         if($data['pdfphp'])
@@ -99,7 +99,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $fields->append($field);
         
         $field = $modules->get('InputfieldText');
-        $field->label = _("Path to wvText executable");
+        $field->label = __("Path to wvText executable");
         $field->attr('name', 'wordpath');
         $field->attr('size', 30);
         $field->attr('value', $data['wordpath']);
@@ -107,8 +107,8 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $fields->append($field);
         
         $field = $modules->get('InputfieldTextarea');
-        $field->label = _("Ignored characters in index");
-        $field->notes = _("Inser the characters separated by newline");
+        $field->label = __("Ignored characters in index");
+        $field->notes = __("Inser the characters separated by newline");
         $field->attr('name', 'ignoredchars');
         $field->attr('rows', 20);
         $field->attr('value', $data['ignoredchars']);
@@ -117,7 +117,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         
         $field = $modules->get('InputfieldInteger');
-        $field->label = _("Minum character to insert in index");
+        $field->label = __("Minum character to insert in index");
         $field->attr('name', 'minlength');
         $field->attr('size', 10);
         $field->attr('value', $data['minlength']);
@@ -126,8 +126,8 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         
         
         $field = $modules->get('InputfieldCheckbox');
-        $field->label = "Reindex all objects"; 
-        $field->description = "if you check this all the pages will be re-index";
+        $field->label = __("Reindex all objects"); 
+        $field->description = __("if you check this all the pages will be re-index");
         $field->attr('name', 'reindex');
         
         $fields->append($field);
