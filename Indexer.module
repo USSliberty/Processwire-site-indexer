@@ -166,7 +166,9 @@ class Indexer extends WireData implements Module, ConfigurableModule {
             
         require_once 'import/Pdf2txt.php';
         
-        $page = &$event->arguments[0]; 
+        $args = $event->arguments;
+        if (!isset($args[0])) return $event;
+        $page = $args[0];
         
         // don't add this to the admin pages
         if($page->template == 'admin') return $event;
