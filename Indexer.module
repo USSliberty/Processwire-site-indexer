@@ -3,198 +3,246 @@
 
 class Indexer extends WireData implements Module, ConfigurableModule {
 
-    
+
+
     protected static $defaults = array(
             'pdfpath' => "/usr/bin/pdftotext",
             'wordpath' => "/usr/bin/wvText",
             'ignoredchars' => ".\n,\n;\n'\n$\n%\n?\n-\n_\n–\n\"\n…",
             'minlength' => 2,
-            'pdfphp' => 0
-            
-    );
-    
-    
+            'pdfphp' => 0,
+            'searchinfiles' => 1,
+            'stopwordslocale' => "en_US",
+            "stopwords" => ""
+   );
+
+
     const fieldName = 'indexer';
-    
+
     public static function getModuleInfo() {
 
         return array(
 
-            'title' => 'Site Indexer (beta)', 
-            'version' => 51, 
+            'title' => 'Site Indexer (beta)',
+            'version' => 70,
             'summary' => 'This module provide an efficent search index, also with pdf/doc files (require poppler-utils and wv)',
             'href' => 'http://alessiodalbianco.me',
-            'singular' => true, 
-            'autoload' => true, 
+            'singular' => true,
+            'autoload' => true,
             );
     }
 
-    
-    
+
+
     public function install(){
-        
+
         // Create the index field on all pages.
         // Check if just exists.
         $indexerField = $this->fields->get('name='.self::fieldName );
-        
+
         if( !$indexerField ):
-            $field = new Field(); 
-            $field->type = $this->modules->get("FieldtypeTextarea"); 
-            $field->name = self::fieldName; 
+            $field = new Field();
+            $field->type = $this->modules->get("FieldtypeTextarea");
+            $field->name = self::fieldName;
             $field->label = 'Index';
-            
+
             $field->labelFieldName = 'title';
             $field->inputfield = 'InputfieldTextarea';
             $field->collapsed = 4;
-            $field->flags = Field::flagAutojoin | Field::flagGlobal; 
+            $field->flags = Field::flagAutojoin | Field::flagGlobal;
             $field->save();
             $this->message("Created index field: " . self::fieldName);
-        
+
         else:
            $this->error("The field:". self::fieldName . " just exists" );
         endif;
-        
+
     }
-    
+
   public function uninstall(){
       $indexerField = $this->fields->get('name='.self::fieldName );
       $indexerField->flags = Field::flagSystemOverride;
       $indexerField->flags = 0;
       $templates = $this->templates;
-      foreach( $templates as $template ): 
+      foreach( $templates as $template ):
         if($template->hasField($indexerField)) {
-            $fieldgroup = $template->fieldgroup;     
-            $fieldgroup->remove($indexerField); 
+            $fieldgroup = $template->fieldgroup;
+            $fieldgroup->remove($indexerField);
             $fieldgroup->save();
-            $this->message("Removed indexer field from ". $template->name . " fieldgroup"); 
+            $this->message("Removed indexer field from ". $template->name . " fieldgroup");
         }
-      endforeach;      
+      endforeach;
       $this->fields->delete($indexerField);
       $this->message("The field: " . self::fieldName . " is removed");
-      
+
   }
-    
+
    static public function getModuleConfigInputfields(array $data) {
         $data = array_merge(self::$defaults, $data);
 
         $fields = new InputfieldWrapper();
         $modules = wire('modules');
-        
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->label = __("Search in files ?");
+        $field->description = __("if you check this Indexer will search in pdf/doc files.");
+        $field->attr('name', 'searchinfiles');
+
+        if($data['searchinfiles'])
+            $field->attr('checked', $data['searchinfiles']);
+        $fields->append($field);
+
         $field = $modules->get('InputfieldText');
         $field->label = __("Path to pdftotext executable");
         $field->attr('name', 'pdfpath');
         $field->attr('size', 30);
         $field->attr('value', $data['pdfpath']);
-        
+
         $fields->append($field);
-        
+
         $field = $modules->get('InputfieldCheckbox');
-        $field->label = __("Use the built-in php class ?"); 
+        $field->label = __("Use the built-in php class ?");
         $field->description = __("if you check this the PHP class will be used insted of poppler");
         $field->attr('name', 'pdfphp');
-        
+
         if($data['pdfphp'])
             $field->attr('checked', $data['pdfphp']);
-        
+
         $fields->append($field);
-        
+
         $field = $modules->get('InputfieldText');
         $field->label = __("Path to wvText executable");
         $field->attr('name', 'wordpath');
         $field->attr('size', 30);
         $field->attr('value', $data['wordpath']);
-        
+
         $fields->append($field);
-        
+
         $field = $modules->get('InputfieldTextarea');
         $field->label = __("Ignored characters in index");
-        $field->notes = __("Inser the characters separated by newline");
+        $field->notes = __("Insert the characters separated by newline");
         $field->attr('name', 'ignoredchars');
         $field->attr('rows', 20);
         $field->attr('value', $data['ignoredchars']);
-        
+
         $fields->append($field);
-        
-        
+
+
         $field = $modules->get('InputfieldInteger');
         $field->label = __("Minum character to insert in index");
         $field->attr('name', 'minlength');
         $field->attr('size', 10);
         $field->attr('value', $data['minlength']);
-        
+
         $fields->append($field);
-        
-        
+
+        $field = $modules->get('InputfieldText');
+        $field->label = __("Locale of stopwords");
+        $field->attr('name', 'stopwordslocale');
+        $field->attr('size', 30);
+        $field->attr('value', $data['stopwordslocale']);
+
+        $fields->append($field);
+
+
+        $filename = $data['stopwordslocale'].".txt";
+        $data['stopwords'] = file_get_contents($filename, FILE_USE_INCLUDE_PATH );
+
+        $field = $modules->get('InputfieldTextarea');
+        $field->label = __("List of stopwords");
+        $field->description = __("These words are always stripped from text.");
+        $field->notes = __("You must modify the txt file in module for add/remove these stopwords. In this case:".$filename);
+        $field->collapsed = 3;
+        $field->attr('readonly','true');
+        $field->attr('name', 'stopwords');
+        $field->attr('rows', 20);
+        $field->attr('value', $data['stopwords']);
+
+        $fields->append($field);
+
         $field = $modules->get('InputfieldCheckbox');
-        $field->label = __("Reindex all objects"); 
+        $field->label = __("Reindex all objects");
         $field->description = __("if you check this all the pages will be re-index");
         $field->attr('name', 'reindex');
-        
+
         $fields->append($field);
         $reindex = wire('input')->post->reindex ? true : false;
+
+
+
         if( $reindex ):
            self::reindexAll();
         endif;
-        
-        
+
+
         return $fields;
     }
-   
+
    public function __construct(){
        $this->pdfpath = $this->getConfig('pdfpath');
        $this->wordpath = $this->getConfig('wordpath');
        $this->minlength = $this->getConfig('minlength');
        $this->pdfphp = $this->getConfig('pdfphp');
        $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
+       $this->stopwordslocale = self::getLocale();
+       $this->stopwords = $this->getConfig('stopwords');
+       $this->searchinfiles = $this->getConfig('searchinfiles');
    }
-   
+
     /**
      * Initialize the module
      *
      * ProcessWire calls this when the module is loaded. For 'autoload' modules, this will be called
-     * when ProcessWire's API is ready. As a result, this is a good place to attach hooks. 
+     * when ProcessWire's API is ready. As a result, this is a good place to attach hooks.
      *
      */
     public function init() {
-        
+
         // add a hook after the $pages->save, to issue a notice every time a page is saved
-        $this->pages->addHookBefore('save', $this, '___indexObject'); 
+        $this->pages->addHookBefore('save', $this, '___indexObject');
 
     }
 
     public function ___indexObject($event) {
-            
+
         require_once 'import/Pdf2txt.php';
-        
+
+
         $args = $event->arguments;
         if (!isset($args[0])) return $event;
         $page = $args[0];
-        
+
         // don't add this to the admin pages
         if($page->template == 'admin') return $event;
-        
+
         // If the page doesn't alredy exists don't do anything.
         if( $page->isNew() ) return $event;
-        
+
         $fulltext = "";
-        
-        // Now we cicle trough all text field and we append all the 
+
+        // Now we cicle trough all text field and we append all the
         // text in $fulltext
         $fields = $page->fields;
-        
+
         foreach ($fields as $field):
-            
-            if( preg_match('/text|title|url/i', $field->type) && $page->editable($field->name) && $field->name != self::fieldName ):
-               $fulltext .= ' '.strip_tags($page->get($field->name));
+
+            // Check if there are Repeaters
+            if(  $field instanceof WireArray ):
+                foreach( $field as $repeater ):
+                   $fulltext .= $this->extractTextFromField($repeater, $page);
+                endforeach;
+            else:
+                $fulltext .= $this->extractTextFromField($field, $page);
             endif;
-            
-            if( preg_match('/file/i', $field->type) && $page->editable($field->name) ):
-               
+
+            // Search in files field.
+            if( preg_match('/file/i', $field->type) && $page->editable($field->name) && $this->searchinfiles ):
+
                $files = $page->get($field->name);
-               
+
                foreach( $files as $file ):
                    $filefullpath = $file->filename;
-                   
+
                    // PDF handling
                    if( preg_match('/pdf/i', $file->ext) ):
                        // Check if we use the PHP Class or the Unix utilities
@@ -206,30 +254,27 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                            $fulltext .= Pdf2Text::pdf2txt($filefullpath);
                        endif;
                    endif;
-                   
+
                    // DOC handling
                    if( preg_match('/doc/i', $file->ext) ):
-                        
+
                        exec($this->wordpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
                        $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
                        unlink('/tmp/'. $file->name);
-                       
-                   endif;
-                   
-                   $fulltext .= ' '.$file->description;  
-               
-               endforeach;
-               
-               
-            endif;
 
+                   endif;
+
+                   $fulltext .= ' '.$file->description;
+
+               endforeach;
+            endif;
         endforeach;
-        
+
         $keys = $this->getKeywords($fulltext);
-        $page->set(self::fieldName,$keys);
+        $page->set(self::fieldName, $keys);
         return $event;
     }
-    
+
      /**
      * get the config either default or overwritten by user config
      * @param  string $key name of the option
@@ -238,60 +283,102 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     public function getConfig($key) {
         return ($this->get($key)) ? $this->get($key) : self::$defaults[$key];
     }
-    
+
     /**
      * return an array of words (keywords)
      * @param {string} text
      * @return {string} keywords
      */
     public function getKeywords($text){
-        
-        $text = str_replace($this->ignoredchars, '', $text);
-        $text = trim(preg_replace('/\s+/', ' ', $text));
-        $text = trim(preg_replace('/[0-9]*/', '', $text));
-        
+
+        // 1) es. &egrave; -> è
+        $text = html_entity_decode($text, ENT_COMPAT, "UTF-8");
+        // 2) Removing ignored chars.
+        $text = str_replace( preg_split('/\r\n|\n|\r/', trim($this->ignoredchars)) , ' ', $text);
+        // 3) Only letters and numbers allowed..
+        // FIXME something weird here.
+        // If i insert "[^A-za-z0-9] all non-chars and non-numerbs are stripped. But also accented chars :(
+        // If i use [^\W0-9] or [^\p{L},^\p{N}] ALL text after first accented char is stripped.
+        // For now we use the first option..... no accent support..
+        $text = preg_replace('/[^A-za-z0-9]/', ' ', $text);
+
+        // 4) Trim all spaces es. "  " -> " "
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        // 5) All words transformed to lowercase.
+        $text = strtolower($text);
+        // 6) Remove stopwords
+        $stopwords = $this->stopwords;
+
+        $stopwords = preg_split('/\r\n|\n|\r/', trim($stopwords));
+
+        foreach( $stopwords as $stopword ):
+            // Ensure that ONLY words are stripped and not part of words.
+            $text = str_replace(" ".$stopword." ", ' ', $text);
+
+        endforeach;
+
         $words = explode(' ',trim($text));
-        
-        // We cleanup the array from spaces and words with length < 2.
+
+        // We cleanup the array from spaces and words with length > $this->minlength.
         $temp = array();
         foreach ($words as $word):
-        
             if( strlen(trim($word)) > intval($this->minlength) ):
                 array_push($temp, $word);
             endif;
-        
         endforeach;
-        
+
         // remove the duplicated words.
         $words = array_unique($temp);
-        
+
         $words = implode(' ', $words);
-        
-        return strtolower($words);
-        
-        
+
+        return $words;
+
+
     }
-    
+
     /**
      * Rebuild the index of ALL pages.
      */
     public static function reindexAll(){
-        
+
         $indexerField = wire('fields')->get('name='.self::fieldName );
         $templates = wire('templates');
         $n_pages = 0;
-        foreach( $templates as $template ): 
+        foreach( $templates as $template ):
         if($template->hasField($indexerField)) {
                $pages = wire('pages')->find('template='.$template);
                $n_pages = $n_pages + count($pages);
                foreach( $pages as $page ):
                    // Trigger the hook __indexObject
                    $page->save();
-               endforeach; 
+               endforeach;
         }
         endforeach;
-        
-        
+
+
     }
-    
+
+    /**
+     * Extract text from regular field.
+     * @param Field/Array $f
+     * @param Page $p
+     */
+     public function extractTextFromField($f, $p){
+
+         if( preg_match('/text|title|url/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
+            $stripped = strip_tags($p->get($f->name));
+            return ' '.$stripped;
+         endif;
+
+     }
+
+     /**
+      * get current locale settings
+      */
+     protected static function getLocale(){
+         return setlocale(LC_CTYPE,0);
+     }
+
 }
