@@ -370,6 +370,17 @@ class Indexer extends WireData implements Module, ConfigurableModule {
          if( preg_match('/text|title|url/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
             $stripped = strip_tags($p->get($f->name));
             return ' '.$stripped;
+        elseif( preg_match('/page/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
+            $stripped = "";
+            $f_ref = $p->get($f->name);
+            if($f_ref instanceOf PageArray){
+                foreach($f_ref as $fp){
+                    $stripped .= ' '.strip_tags($fp->name);
+                }
+            }else{
+                $stripped .= ' '.strip_tags($f_ref->name);
+            }
+            return $stripped;
          endif;
 
      }
