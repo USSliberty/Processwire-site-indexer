@@ -24,7 +24,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         return array(
 
             'title' => 'Site Indexer (beta)',
-            'version' => 70,
+            'version' => 80,
             'summary' => 'This module provide an efficent search index, also with pdf/doc files (require poppler-utils and wv)',
             'href' => 'http://alessiodalbianco.me',
             'singular' => true,
@@ -187,6 +187,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
        $this->stopwordslocale = self::getLocale();
        $this->stopwords = $this->getConfig('stopwords');
        $this->searchinfiles = $this->getConfig('searchinfiles');
+       // DEBUG $this->log = new FileLog($this->config->paths->logs . 'indexer.txt');
    }
 
     /**
@@ -223,13 +224,19 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         // Now we cicle trough all text field and we append all the
         // text in $fulltext
         $fields = $page->fields;
+        // DEBUG $this->log->save("/// PROCESSING PAGE " . $page);
+        $fulltext .= " ". $page->url;
 
         foreach ($fields as $field):
-
             // Check if there are Repeaters
-            if(  $field instanceof WireArray ):
-                foreach( $field as $repeater ):
-                   $fulltext .= $this->extractTextFromField($repeater, $page);
+            if( $field->type == "FieldtypeRepeater" ):
+                foreach( $page->get($field->name) as $repeater ):
+
+                    // Now we cicle trough all fields of repeaters.
+                    foreach( $repeater->fields as $rep_field ):
+                       $fulltext .= $this->extractTextFromField($rep_field, $repeater);
+                    endforeach;
+
                 endforeach;
             else:
                 $fulltext .= $this->extractTextFromField($field, $page);
@@ -366,8 +373,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
      * @param Page $p
      */
      public function extractTextFromField($f, $p){
-
-         if( preg_match('/text|title|url/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
+        if( preg_match('/text|title|url/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
             $stripped = strip_tags($p->get($f->name));
             return ' '.$stripped;
         elseif( preg_match('/page/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
