@@ -25,9 +25,8 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         return array(
 
             'title' => 'Site Indexer (beta)',
-            'version' => 80,
-            'summary' => 'This module provide an efficent search index, also with pdf/doc files (require poppler-utils and wv)',
-            'href' => 'http://alessiodalbianco.me',
+            'version' => 081,
+            'summary' => 'This module provide an efficent search index, also with pdf/doc files',
             'singular' => true,
             'autoload' => true,
             );
