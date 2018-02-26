@@ -270,7 +270,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                            $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
                            unlink('/tmp/'. $file->name);
                        else:
-                           $fulltext .= Pdf2Text::pdf2txt($filefullpath);
+                           $fulltext .= LukeMadhanga\Pdf2Text::pdf2txt($filefullpath);
                        endif;
                    endif;
 
