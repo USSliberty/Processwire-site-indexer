@@ -25,7 +25,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         return array(
 
             'title' => 'Site Indexer (beta)',
-            'version' => 081,
+            'version' => 81,
             'summary' => 'This module provide an efficent search index, also with pdf/doc files',
             'singular' => true,
             'autoload' => true,
