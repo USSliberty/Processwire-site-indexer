@@ -11,6 +11,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
             'ignoredchars' => ".\n,\n;\n'\n$\n%\n?\n-\n_\n–\n\"\n…",
             'minlength' => 2,
             'pdfphp' => 0,
+            'wordphp' => 0,
             'searchinfiles' => 1,
             'stopwordslocale' => "en_US",
             "stopwords" => ""
@@ -101,7 +102,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $fields->append($field);
 
         $field = $modules->get('InputfieldCheckbox');
-        $field->label = __("Use the built-in php class ?");
+        $field->label = __("Use the built-in php PDF parser class?");
         $field->description = __("if you check this the PHP class will be used insted of poppler");
         $field->attr('name', 'pdfphp');
 
@@ -115,6 +116,16 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $field->attr('name', 'wordpath');
         $field->attr('size', 30);
         $field->attr('value', $data['wordpath']);
+
+        $fields->append($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->label = __("Use the built-in php Word doc parser class?");
+        $field->description = __("if you check this the PHP class will be used insted of wvText");
+        $field->attr('name', 'wordphp');
+
+        if($data['wordphp'])
+            $field->attr('checked', $data['wordphp']);
 
         $fields->append($field);
 
@@ -183,6 +194,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
        $this->wordpath = $this->getConfig('wordpath');
        $this->minlength = $this->getConfig('minlength');
        $this->pdfphp = $this->getConfig('pdfphp');
+       $this->wordphp = $this->getConfig('wordphp');
        $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
        $this->stopwordslocale = self::getLocale();
        $this->stopwords = $this->getConfig('stopwords');
@@ -207,6 +219,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     public function ___indexObject($event) {
 
         require_once 'import/Pdf2txt.php';
+        require_once 'import/DocumentParser.php';
 
 
         $args = $event->arguments;
@@ -265,9 +278,13 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                    // DOC handling
                    if( preg_match('/doc/i', $file->ext) ):
 
+                     if( !$this->wordphp ):
                        exec($this->wordpath . ' ' . $filefullpath . ' /tmp/'. $file->name);
                        $fulltext .= ' '.file_get_contents('/tmp/'. $file->name);
                        unlink('/tmp/'. $file->name);
+                     else:
+                       $fulltext .= DocumentParser::parseFromFile($filefullpath);
+                     endif;
 
                    endif;
 
