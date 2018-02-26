@@ -6,7 +6,7 @@
 //               text at the end
 // Authors      : Jonathan Beckett, 2005-05-02
 //              : Sven Schuberth, 2007-03-29
-//              : adrian & Alessio Dal Bianco 2013-05-14  
+//              : adrian & Alessio Dal Bianco 2013-05-14
 class Pdf2Text {
     // Global table for codes replacement
     private static $TCodeReplace = array('\(' => '(', '\)' => ')');
@@ -60,7 +60,7 @@ class Pdf2Text {
         foreach ($a_chunks as $chunk) {
 
             // look at each chunk and decide how to decode it - by looking at the contents of the filter
-            $a_filter = split("/", $chunk["filter"]);
+            $a_filter = preg_split("/", $chunk["filter"]);
 
             if ($chunk["data"] != "") {
                 // look at the filter to find out which encoding has been used
