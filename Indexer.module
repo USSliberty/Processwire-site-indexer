@@ -415,3 +415,5 @@ class Indexer extends WireData implements Module, ConfigurableModule {
      }
 
 }
+
+// -*- mode: php;-*-
