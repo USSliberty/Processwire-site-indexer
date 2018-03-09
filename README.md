@@ -1,4 +1,4 @@
-Processwire site Indexer v 0.8.1
+Processwire site Indexer v 0.8.2
 ===================================
 
 Provide a simple site indexer for processwire pages.
