@@ -327,6 +327,10 @@ class Indexer extends WireData implements Module, ConfigurableModule {
 
         // 4) Trim all spaces es. "  " -> " "
         $text = preg_replace('/\s+/', ' ', $text);
+        
+        // 4a) Try to remove 8 character long hex-encoded strings apparently coming from .doc files. They contain upper case
+        // A-F so we'll do this before Step 5 below (strtolower) to better avoid false positives
+        $text = preg_replace("/[A-F,0-9]{8}/", "", $text);
 
         // 5) All words transformed to lowercase.
         $text = strtolower($text);
