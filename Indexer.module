@@ -2,9 +2,6 @@
 
 
 class Indexer extends WireData implements Module, ConfigurableModule {
-
-
-
     protected static $defaults = array(
             'pdfpath' => "/usr/bin/pdftotext",
             'wordpath' => "/usr/bin/wvText",
@@ -15,8 +12,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
             'searchinfiles' => 1,
             'stopwordslocale' => "en_US",
             "stopwords" => ""
-   );
-
+    );
 
     const fieldName = 'indexer';
 
@@ -30,8 +26,6 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                 'autoload' => true,
             );
     }
-
-
 
     public function install(){
 
@@ -51,32 +45,30 @@ class Indexer extends WireData implements Module, ConfigurableModule {
             $field->flags = Field::flagAutojoin | Field::flagGlobal;
             $field->save();
             $this->message("Created index field: " . self::fieldName);
-
         else:
            $this->error("The field:". self::fieldName . " just exists" );
         endif;
 
     }
 
-  public function uninstall(){
-      $indexerField = $this->fields->get('name='.self::fieldName );
-      $indexerField->flags = Field::flagSystemOverride;
-      $indexerField->flags = 0;
-      $templates = $this->templates;
-      foreach( $templates as $template ):
-        if($template->hasField($indexerField)) {
-            $fieldgroup = $template->fieldgroup;
-            $fieldgroup->remove($indexerField);
-            $fieldgroup->save();
-            $this->message("Removed indexer field from ". $template->name . " fieldgroup");
-        }
-      endforeach;
-      $this->fields->delete($indexerField);
-      $this->message("The field: " . self::fieldName . " is removed");
+    public function uninstall(){
+        $indexerField = $this->fields->get('name='.self::fieldName );
+        $indexerField->flags = Field::flagSystemOverride;
+        $indexerField->flags = 0;
+        $templates = $this->templates;
+        foreach( $templates as $template ):
+            if($template->hasField($indexerField)) {
+                $fieldgroup = $template->fieldgroup;
+                $fieldgroup->remove($indexerField);
+                $fieldgroup->save();
+                $this->message("Removed indexer field from ". $template->name . " fieldgroup");
+            }
+        endforeach;
+        $this->fields->delete($indexerField);
+        $this->message("The field: " . self::fieldName . " is removed");
+    }
 
-  }
-
-   static public function getModuleConfigInputfields(array $data) {
+    static public function getModuleConfigInputfields(array $data) {
         $data = array_merge(self::$defaults, $data);
 
         $fields = new InputfieldWrapper();
@@ -177,28 +169,25 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $fields->append($field);
         $reindex = wire('input')->post->reindex ? true : false;
 
-
-
         if( $reindex ):
-           self::reindexAll();
+        self::reindexAll();
         endif;
-
 
         return $fields;
     }
 
-   public function __construct(){
-       $this->pdfpath = $this->getConfig('pdfpath');
-       $this->wordpath = $this->getConfig('wordpath');
-       $this->minlength = $this->getConfig('minlength');
-       $this->pdfphp = $this->getConfig('pdfphp');
-       $this->wordphp = $this->getConfig('wordphp');
-       $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
-       $this->stopwordslocale = self::getLocale();
-       $this->stopwords = $this->getConfig('stopwords');
-       $this->searchinfiles = $this->getConfig('searchinfiles');
-       // DEBUG $this->log = new FileLog($this->config->paths->logs . 'indexer.txt');
-   }
+    public function __construct(){
+        $this->pdfpath = $this->getConfig('pdfpath');
+        $this->wordpath = $this->getConfig('wordpath');
+        $this->minlength = $this->getConfig('minlength');
+        $this->pdfphp = $this->getConfig('pdfphp');
+        $this->wordphp = $this->getConfig('wordphp');
+        $this->ignoredchars = explode("\n",$this->getConfig('ignoredchars'));
+        $this->stopwordslocale = self::getLocale();
+        $this->stopwords = $this->getConfig('stopwords');
+        $this->searchinfiles = $this->getConfig('searchinfiles');
+        // DEBUG $this->log = new FileLog($this->config->paths->logs . 'indexer.txt');
+    }
 
     /**
      * Initialize the module
@@ -297,7 +286,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         return $event;
     }
 
-     /**
+    /**
      * get the config either default or overwritten by user config
      * @param  string $key name of the option
      * @return mixed      return requested option value
@@ -311,7 +300,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
      * @param {string} text
      * @return {string} keywords
      */
-    public function getKeywords($text){
+    public function getKeywords($text) {
 
         // 1) es. &egrave; -> è
         $text = html_entity_decode($text, ENT_COMPAT, "UTF-8");
@@ -341,7 +330,6 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         foreach( $stopwords as $stopword ):
             // Ensure that ONLY words are stripped and not part of words.
             $text = str_replace(" ".$stopword." ", ' ', $text);
-
         endforeach;
 
         $words = explode(' ',trim($text));
@@ -360,15 +348,12 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         $words = implode(' ', $words);
 
         return $words;
-
-
     }
 
     /**
      * Rebuild the index of ALL pages.
      */
-    public static function reindexAll(){
-
+    public static function reindexAll() {
         $indexerField = wire('fields')->get('name='.self::fieldName );
         $templates = wire('templates');
         $n_pages = 0;
@@ -391,7 +376,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
      * @param Field/Array $f
      * @param Page $p
      */
-     public function extractTextFromField($f, $p){
+    public function extractTextFromField($f, $p){
         if( preg_match('/text|title|url/i', $f->type) && $p->editable($f->name) && $f->name != self::fieldName ):
             $stripped = strip_tags($p->get($f->name));
             return ' '.$stripped;
@@ -406,15 +391,14 @@ class Indexer extends WireData implements Module, ConfigurableModule {
                 $stripped .= ' '.strip_tags($f_ref->name);
             }
             return $stripped;
-         endif;
+        endif;
+    }
 
-     }
-
-     /**
-      * get current locale settings
-      */
-     protected static function getLocale(){
-         return setlocale(LC_CTYPE,0);
-     }
+    /**
+     * get current locale settings
+    */
+    protected static function getLocale(){
+        return setlocale(LC_CTYPE,0);
+    }
 
 }
