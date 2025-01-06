@@ -23,12 +23,11 @@ class Indexer extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo() {
 
         return array(
-
-            'title' => 'Site Indexer (beta)',
-            'version' => 82,
-            'summary' => 'This module provide an efficent search index, also with pdf/doc files',
-            'singular' => true,
-            'autoload' => true,
+                'title' => 'Site Indexer (beta)',
+                'version' => 83,
+                'summary' => 'This module provide an efficent search index, also with pdf/doc files',
+                'singular' => true,
+                'autoload' => true,
             );
     }
 
@@ -156,7 +155,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
 
 
         $filename = $data['stopwordslocale'].".txt";
-        $data['stopwords'] = file_get_contents($filename, FILE_USE_INCLUDE_PATH );
+        $data['stopwords'] = file_get_contents(__DIR__."/".$filename );
 
         $field = $modules->get('InputfieldTextarea');
         $field->label = __("List of stopwords");
@@ -317,7 +316,7 @@ class Indexer extends WireData implements Module, ConfigurableModule {
         // 1) es. &egrave; -> è
         $text = html_entity_decode($text, ENT_COMPAT, "UTF-8");
         // 2) Removing ignored chars.
-        $text = str_replace( preg_split('/\r\n|\n|\r/', trim($this->ignoredchars)) , ' ', $text);
+        $text = str_replace( $this->ignoredchars, ' ', $text);
         // 3) Only letters and numbers allowed..
         // FIXME something weird here.
         // If i insert "[^A-za-z0-9] all non-chars and non-numerbs are stripped. But also accented chars :(
@@ -419,5 +418,3 @@ class Indexer extends WireData implements Module, ConfigurableModule {
      }
 
 }
-
-// -*- mode: php;-*-
